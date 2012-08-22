@@ -97,6 +97,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Analyzer.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="MainViewModel.cs" />
     <Compile Include="Options.cs" />

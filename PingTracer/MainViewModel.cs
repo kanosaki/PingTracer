@@ -10,6 +10,7 @@ using System.Reactive.Threading.Tasks;
 using System.Reactive.Concurrency;
 using System.Windows;
 using Livet;
+using Livet.EventListeners;
 using System.Windows.Input;
 using Livet.Commands;
 using System.Windows.Media;
@@ -18,8 +19,7 @@ namespace PingTracer
 {
     public class MainViewModel : ViewModel
     {
-        const double VALUE_IGNORE_RATIO = 3;
-        const double VALUE_IGNORE_THRESOULD = 100;
+
         public MainViewModel()
         {
             this.LoadDefaults();
@@ -29,7 +29,6 @@ namespace PingTracer
         #region Initializers
         protected virtual void LoadDefaults()
         {
-            this.StatisticsRange = TimeSpan.FromSeconds(60);
             this.PollInterval = TimeSpan.FromSeconds(2);
             this.RoundtripMaxItems = 30;
             this.Ttl = 30;
@@ -38,22 +37,18 @@ namespace PingTracer
 
         public void Init()
         {
-            _statisticsSamples = new List<PingResult>();
-            this.StartTime = DateTime.Now; 
+            _analyzer = new PingResultAnalyzer();
+            _analyzerAdapter = new PropertyChangedEventListener(_analyzer, (s,e) => this.RaisePropertyChanged(e.PropertyName));
+            this.StartTime = DateTime.Now;
             this.Roundtrips = new ObservableCollection<ChartEntry>();
-            this.SkippedResults = new ObservableCollection<PingResult>();
             this.TogglePollCommand = new ViewModelCommand(this.TogglePoll);
             this.InitTracer();
         }
 
         public void InitTracer()
         {
-            if (_tracerToken != null)
-            {
-                _tracerToken.Dispose();
-            }
             _tracer = new Tracer(this.TargetHost, this.Ttl, this.PollInterval);
-            _tracerToken = _tracer.PingReplies.ObserveOnDispatcher().Subscribe(
+            _tracer.PingReplies.ObserveOnDispatcher().Subscribe(
                 this.OnNextPingResult,
                 (Exception ex) =>
                 {
@@ -97,22 +92,6 @@ namespace PingTracer
         }
         #endregion
 
-        #region StatisticsRange
-        private TimeSpan _StatisticsRange;
-
-        public TimeSpan StatisticsRange
-        {
-            get
-            { return _StatisticsRange; }
-            set
-            {
-                if (_StatisticsRange == value)
-                    return;
-                _StatisticsRange = value;
-                RaisePropertyChanged("StatisticsRange");
-            }
-        }
-        #endregion
 
         #region PollInterval
         private TimeSpan _PollInterval;
@@ -154,9 +133,19 @@ namespace PingTracer
 
         Tracer _tracer;
 
-        IDisposable _tracerToken;
+        PingResultAnalyzer _analyzer;
+        PropertyChangedEventListener _analyzerAdapter;
 
-        List<PingResult> _statisticsSamples;
+        #region Analyzer adapting properties
+        public TimeSpan AnalyzerTargetRange { get { return _analyzer.TargetRange; } }
+        public double RoundtripAverage { get { return _analyzer.RoundtripAverage; } }
+        public double RoundtripVariance { get { return _analyzer.RoundtripVariance; } }
+        public double RoundtripScore { get { return _analyzer.RoundtripScore; } }
+        public double LastRoundtrip { get { return _analyzer.LastRoundtrip; } }
+        public int IgnoredValuesCount { get { return _analyzer.IgnoredValuesCount; } }
+      
+
+        #endregion
 
         #region StateColor
         private Brush _stateColor;
@@ -192,57 +181,6 @@ namespace PingTracer
         }
         #endregion
 
-        #region RoundtripVariance
-        private double _RoundtripVariance;
-
-        public double RoundtripVariance
-        {
-            get
-            { return _RoundtripVariance; }
-            set
-            {
-                if (_RoundtripVariance == value)
-                    return;
-                _RoundtripVariance = value;
-                RaisePropertyChanged("RoundtripVariance");
-            }
-        }
-        #endregion
-
-        #region RoundtripAverage
-        private double _RoundtripAverage;
-
-        public double RoundtripAverage
-        {
-            get
-            { return _RoundtripAverage; }
-            set
-            {
-                if (_RoundtripAverage == value)
-                    return;
-                _RoundtripAverage = value;
-                RaisePropertyChanged("RoundtripAverage");
-            }
-        }
-        #endregion
-
-        #region RoundtripScore
-        private double _RoundtripScore;
-
-        public double RoundtripScore
-        {
-            get
-            { return _RoundtripScore; }
-            set
-            { 
-                if (_RoundtripScore == value)
-                    return;
-                _RoundtripScore = value;
-                RaisePropertyChanged("RoundtripScore");
-            }
-        }
-        #endregion
-
         #region StartTime
         private DateTime _StartTime;
 
@@ -251,7 +189,7 @@ namespace PingTracer
             get
             { return _StartTime; }
             set
-            { 
+            {
                 if (_StartTime == value)
                     return;
                 _StartTime = value;
@@ -268,42 +206,6 @@ namespace PingTracer
         }
         #endregion
 
-        #region LastRoundtrip
-        private double _LastRoundtrip;
-
-        public double LastRoundtrip
-        {
-            get
-            { return _LastRoundtrip; }
-            set
-            { 
-                if (_LastRoundtrip == value)
-                    return;
-                _LastRoundtrip = value;
-                RaisePropertyChanged("LastRoundtrip");
-            }
-        }
-        #endregion
-
-        #region IgnoredValuesCount
-        private int _IgnoredValuesCount;
-
-        public int IgnoredValuesCount
-        {
-            get
-            { return _IgnoredValuesCount; }
-            set
-            { 
-                if (_IgnoredValuesCount == value)
-                    return;
-                _IgnoredValuesCount = value;
-                RaisePropertyChanged("IgnoredValuesCount");
-            }
-        }
-        #endregion
-
-
-        public ObservableCollection<PingResult> SkippedResults { get; private set; }
         public ObservableCollection<ChartEntry> Roundtrips { get; private set; }
 
         public ICommand TogglePollCommand { get; private set; }
@@ -326,50 +228,12 @@ namespace PingTracer
 
         protected void OnNextPingResult(PingResult pr)
         {
-            if (this.ShouldIgnore(pr.RoundtripTime))
-            {
-                this.SkippedResults.Add(pr);
-                this.TruncateSamples(this.SkippedResults);
-                this.IgnoredValuesCount = this.SkippedResults.Count;
-            }
-            else
-            {
-                this.LastRoundtrip = pr.RoundtripTime;
-                this.TruncateSamples(this.SkippedResults);
-                this.IgnoredValuesCount = this.SkippedResults.Count;
-                this.UpdateStatistics(pr);
-                var label = pr.TimeStamp.ToString("mm:ss");
-                var time = (int)pr.RoundtripTime;
-                this.PushRoundtripItem(label, time);
-                this.UpdateProgressBar(pr);
-                this.RaisePropertyChanged(() => this.ElapsedTime);
-            }
-        }
-
-        private bool ShouldIgnore(double roundtrip)
-        {
-            if (this.RoundtripAverage == default(double)) { return false; }
-            return roundtrip > this.RoundtripAverage * VALUE_IGNORE_RATIO && roundtrip > VALUE_IGNORE_THRESOULD;
-        }
-
-        public void UpdateStatistics(PingResult result)
-        {
-            _statisticsSamples.Add(result);
-            this.TruncateSamples(_statisticsSamples);
-            var samples = _statisticsSamples.Select(pr => pr.RoundtripTime).ToList();
-            var now = DateTime.Now;
-            var maxTimeDelta = now - _statisticsSamples.First().TimeStamp;
-            var weights = _statisticsSamples
-                .Select(pr =>  1 - ((now - pr.TimeStamp).TotalMilliseconds / maxTimeDelta.TotalMilliseconds)).ToList();
-            this.RoundtripAverage = samples.WeightedAverage(weights);
-            this.RoundtripVariance = samples.WeightedStandardDiviation(weights);
-            this.RoundtripScore = this.RoundtripAverage + this.RoundtripVariance;
-        }
-
-        private void TruncateSamples(IList<PingResult> target)
-        {
-            if (target.Count > 0 && target.First().TimeStamp < DateTime.Now - this.StatisticsRange)
-                target.RemoveAt(0);
+            _analyzer.OnNext(pr);
+            var label = pr.TimeStamp.ToString("mm:ss");
+            var time = (int)pr.RoundtripTime;
+            this.PushRoundtripItem(label, time);
+            this.UpdateProgressBar(pr);
+            this.RaisePropertyChanged(() => this.ElapsedTime);
         }
 
         public void UpdateProgressBar(PingResult result)
