@@ -257,7 +257,7 @@ namespace PingTracer
         public void UpdateVisualizers(PingResult result)
         {
             this.StateColor = this.GetScoreColor(this.RoundtripScore);
-            this.SignalLevel = Math.Max(5 - (int)Math.Round(this.RoundtripScore / 10), 0);
+            this.SignalLevel = Math.Max(5 - (int)Math.Floor(this.RoundtripScore / 10), 0);
         }
 
         protected Brush GetScoreColor(double score)
