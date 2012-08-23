@@ -271,9 +271,9 @@ namespace PingTracer
             else if (score > 20)
                 return Brushes.Gold;
             else if (score > 10)
-                return Brushes.Green;
+                return Brushes.Lime;
             else
-                return Brushes.Blue;
+                return Brushes.RoyalBlue;
         }
 
         public void PushRoundtripItem(string tag, int value)
