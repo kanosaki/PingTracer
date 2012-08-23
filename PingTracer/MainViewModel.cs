@@ -271,7 +271,7 @@ namespace PingTracer
             else if (score > 20)
                 return Brushes.Gold;
             else if (score > 10)
-                return Brushes.Lime;
+                return Brushes.Green;
             else
                 return Brushes.RoyalBlue;
         }
