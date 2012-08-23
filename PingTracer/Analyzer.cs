@@ -164,7 +164,7 @@ namespace PingTracer
 
         protected virtual double GetScore()
         {
-            return this.RoundtripAverage + this.RoundtripVariance;
+            return this.RoundtripAverage + 2 * this.RoundtripVariance;
         }
 
         private IList<double> GetWeight(ICollection<PingResult> source)
