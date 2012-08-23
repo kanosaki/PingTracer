@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:chart="clr-namespace:System.Windows.Controls.DataVisualization.Charting;assembly=System.Windows.Controls.DataVisualization.Toolkit"
         xmlns:pg="clr-namespace:Xceed.Wpf.Toolkit.PropertyGrid;assembly=WPFToolkit.Extended"
-        Title="PingTracer" Height="560" Width="923">
+        Title="PingTracer" Height="560" Width="923" xmlns:my="clr-namespace:PingTracer">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="60" />
@@ -59,6 +59,7 @@
             <Label VerticalAlignment="Center" Content="{Binding RoundtripAverage,Mode=OneWay}" ContentStringFormat="{}{0:0.00}" Grid.Row="4" Grid.Column="1" />
             <Label VerticalAlignment="Center" Content="{Binding RoundtripVariance}" ContentStringFormat="{}{0:0.00}" Grid.Row="5" Grid.Column="1" />
             <Label VerticalAlignment="Center" Content="{Binding IgnoredValuesCount}" Grid.Row="6" Grid.Column="1" />
+            <my:SignalView Grid.Row="7" Margin="6,12,6,6" x:Name="signalView1" Grid.ColumnSpan="2" SignalMargin="3" Level="{Binding SignalLevel}" Foreground="{Binding StateColor}"/>
         </Grid>
     </Grid>
 </Window>

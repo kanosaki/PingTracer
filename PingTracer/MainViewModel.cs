@@ -38,7 +38,7 @@ namespace PingTracer
         public void Init()
         {
             _analyzer = new PingResultAnalyzer();
-            _analyzerAdapter = new PropertyChangedEventListener(_analyzer, (s,e) => this.RaisePropertyChanged(e.PropertyName));
+            _analyzerAdapter = new PropertyChangedEventListener(_analyzer, (s, e) => this.RaisePropertyChanged(e.PropertyName));
             this.StartTime = DateTime.Now;
             this.Roundtrips = new ObservableCollection<ChartEntry>();
             this.TogglePollCommand = new ViewModelCommand(this.TogglePoll);
@@ -143,7 +143,7 @@ namespace PingTracer
         public double RoundtripScore { get { return _analyzer.RoundtripScore; } }
         public double LastRoundtrip { get { return _analyzer.LastRoundtrip; } }
         public int IgnoredValuesCount { get { return _analyzer.IgnoredValuesCount; } }
-      
+
 
         #endregion
 
@@ -206,6 +206,24 @@ namespace PingTracer
         }
         #endregion
 
+        #region SignalLevel変更通知プロパティ
+        private int _SignalLevel;
+
+        public int SignalLevel
+        {
+            get
+            { return _SignalLevel; }
+            set
+            {
+                if (_SignalLevel == value)
+                    return;
+                _SignalLevel = value;
+                RaisePropertyChanged("SignalLevel");
+            }
+        }
+        #endregion
+
+
         public ObservableCollection<ChartEntry> Roundtrips { get; private set; }
 
         public ICommand TogglePollCommand { get; private set; }
@@ -232,13 +250,14 @@ namespace PingTracer
             var label = pr.TimeStamp.ToString("mm:ss");
             var time = (int)pr.RoundtripTime;
             this.PushRoundtripItem(label, time);
-            this.UpdateProgressBar(pr);
+            this.UpdateVisualizers(pr);
             this.RaisePropertyChanged(() => this.ElapsedTime);
         }
 
-        public void UpdateProgressBar(PingResult result)
+        public void UpdateVisualizers(PingResult result)
         {
             this.StateColor = this.GetScoreColor(this.RoundtripScore);
+            this.SignalLevel = Math.Max(5 - (int)Math.Round(this.RoundtripScore / 10), 0);
         }
 
         protected Brush GetScoreColor(double score)
