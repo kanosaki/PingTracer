@@ -170,8 +170,7 @@ namespace PingTracer
         private IList<double> GetWeight(ICollection<PingResult> source)
         {
             var now = DateTime.Now;
-            var maxTimeDelta = now - source.First().TimeStamp;
-            return source.Select(pr => 1 - ((now - pr.TimeStamp).TotalMilliseconds / maxTimeDelta.TotalMilliseconds)).ToList();
+            return source.Select(pr => 1 - ((now - pr.TimeStamp).TotalMilliseconds / this.TargetRange.TotalMilliseconds)).ToList();
         }
 
 
