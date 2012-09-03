@@ -47,12 +47,14 @@ namespace PingTracer
 
         public void InitTracer()
         {
+            if (_nextPingResultSubscription != null)
+                _nextPingResultSubscription.Dispose();
             _tracer = new Tracer(this.TargetHost, this.Ttl, this.PollInterval);
-            _tracer.PingReplies.ObserveOnDispatcher().Subscribe(
-                this.OnNextPingResult,
-                (Exception ex) =>
-                {
-                });
+            _nextPingResultSubscription = 
+                _tracer.PingReplies
+                .ObserveOnDispatcher()
+                .Subscribe(this.OnNextPingResult);
+            _analyzer.UpdateTracer(_tracer);
         }
         #endregion
 
@@ -132,7 +134,7 @@ namespace PingTracer
         #region Volatile Properties
 
         Tracer _tracer;
-
+        IDisposable _nextPingResultSubscription;
         PingResultAnalyzer _analyzer;
         PropertyChangedEventListener _analyzerAdapter;
 
@@ -246,7 +248,6 @@ namespace PingTracer
 
         protected void OnNextPingResult(PingResult pr)
         {
-            _analyzer.OnNext(pr);
             var label = pr.TimeStamp.ToString("mm:ss");
             var time = (int)pr.RoundtripTime;
             this.PushRoundtripItem(label, time);

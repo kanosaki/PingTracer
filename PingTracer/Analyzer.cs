@@ -11,6 +11,7 @@ namespace PingTracer
         const double VALUE_IGNORE_THRESOULD = 100;
         List<PingResult> _acceptedSamples;
         List<PingResult> _skippedSamples;
+        IDisposable _tracerSubscription;
 
         public PingResultAnalyzer()
         {
@@ -27,6 +28,13 @@ namespace PingTracer
         protected virtual void LoadDefaults()
         {
             this.TargetRange = TimeSpan.FromSeconds(60);
+        }
+
+        public void UpdateTracer(Tracer tracer)
+        {
+            if (_tracerSubscription != null)
+                _tracerSubscription.Dispose();
+            _tracerSubscription = tracer.PingReplies.Subscribe(this);
         }
 
         #region TargetRange

@@ -15,9 +15,9 @@ using System.Diagnostics;
 
 namespace PingTracer
 {
-    public class Tracer
+    public class Tracer : IDisposable
     {
-        public IObservable<PingResult> PingReplies { get; private set; }
+        public IObservable<PingResult> PingReplies { get { return _pingReplies; } }
         public TimeSpan Interval { get; set; }
         public string TargetHost { get; set; }
         public int Ttl { get; set; }
@@ -32,12 +32,15 @@ namespace PingTracer
         PingOptions _pingOptions;
         byte[] _data = BitConverter.GetBytes(1);
         IPAddress _target;
+        Subject<PingResult> _pingReplies;
+        IDisposable _workerSubscription;
 
         public Tracer(string target, int ttl, TimeSpan interval)
         {
             this.TargetHost = target;
             this.Ttl = ttl;
             this.Interval = interval;
+            _pingReplies = new Subject<PingResult>();
             this.PingTimeout = 1000;
             this.Init();
             this.InitWorker();
@@ -45,11 +48,15 @@ namespace PingTracer
 
         private void InitWorker()
         {
-            this.PingReplies =
-               Observable.Interval(this.Interval, TaskPoolScheduler.Default)
-                   .StartWith(0)
-                   .Where(_ => this.Enabled)
-                   .Select(this.ExecPing);
+            if (_workerSubscription != null)
+                _workerSubscription.Dispose();
+            _workerSubscription = Observable
+                .Timer(dueTime: TimeSpan.Zero,
+                       period: this.Interval, 
+                       scheduler: TaskPoolScheduler.Default)
+                .Where(_ => this.Enabled)
+                .Select(this.ExecPing)
+                .Subscribe(_pingReplies.OnNext);
         }
 
         private void Init()
@@ -76,6 +83,12 @@ namespace PingTracer
         public void Stop()
         {
             this.Enabled = false;
+        }
+
+        public void Dispose()
+        {
+            if (_workerSubscription != null)
+                _workerSubscription.Dispose();
         }
     }
 
